@@ -16,7 +16,7 @@ canvas {
   left: 0;
   right: 0;
   margin: auto;
-  background: white;
+  background: black;
 }
 </style>
 </head>
@@ -42,7 +42,7 @@ face.Particle = function(xStart, yStart, xSpeed, ySpeed) {
 	this.y = yStart;
 	this.xSpeed = xSpeed;
 	this.ySpeed = ySpeed;
-	this.r = Math.random() * 1/2 * face.height;
+	this.r = Math.random() * Math.sqrt(pageWidth/2 * pageWidth/2 + pageHeight/2 * pageHeight/2);
 	this.theta = Math.random() * 2 * Math.PI;
 	this.rSpeed = 0.01;
 	this.thetaSpeed = 0.01;
@@ -60,7 +60,7 @@ face.Particle = function(xStart, yStart, xSpeed, ySpeed) {
 
 	this.move = function() {
 		// Acceleration based on gray level (i.e. red here)
-		var speed = (face.pixelRGBA(Math.floor(this.x), Math.floor(this.y), this).R < 125 ? 1 : 5);// There only 0's and 255's anyway with a thresholded img
+		var speed = (face.pixelRGBA(Math.floor(this.x), Math.floor(this.y), this).R < 125 ? 5 : 1);// There only 0's and 255's anyway with a thresholded img
 		if (this.type == '1') {
 			this.rSpeed = 0.5 * speed;
 			this.thetaSpeed = 0;
@@ -79,7 +79,7 @@ face.Particle = function(xStart, yStart, xSpeed, ySpeed) {
 	};
 
 	this.draw = function() {
-		stroke(color('rgba(0, 0, 0, 0.3)'));
+		stroke(color('rgba(255, 255, 255, 0.05)'));
 		var canvasXY = face.localImgToCanvas(this.x, this.y);
 		point(canvasXY.x, canvasXY.y);
 	};
