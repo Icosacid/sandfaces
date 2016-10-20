@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Faces</title>
+<style>
+body, html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+}
+canvas {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: auto;
+  background: white;
+}
+</style>
+</head>
+
+<body></body>
+</html>
+
+<script src='https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.5.4/p5.min.js'></script>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js'></script>
+<script type='text/javascript'>
+
+var face = {}; // Namespace
+face.width = 2 * 210, face.height = 2 * 297;
+face.universe = [];
+
+face.Particle = function(xStart, yStart, xSpeed, ySpeed) {
+	this.x = xStart;
+	this.y = yStart;
+	this.xSpeed = xSpeed;
+	this.ySpeed = ySpeed;
+	this.type = (Math.random() > 0.5 ? 'xGoing' : 'yGoing');
+	if (this.type == 'xGoing') { this.ySpeed = 0; } else { this.xSpeed = 0; }
+
+	this.move = function() {
+		// Gravitational gradient
+		var acc =  0.001 * (1 + face.pixelRGBA(Math.floor(this.x), Math.floor(this.y)).r) ;
+		this.ySpeed += (this.type == 'yGoing' ? acc : 0);
+		this.y += this.ySpeed;
+		this.xSpeed += (this.type == 'xGoing' ? acc : 0);
+		this.x += this.xSpeed;
+
+		if (this.isOutsideScope()) {
+			// Repop anywhere with speed zero
+			this.x = Math.random() * face.height;
+			this.y = Math.random() * face.width;
+			this.xSpeed = 0;
+			this.ySpeed = 0;
+		}
+	};
+
+	this.draw = function() {
+		stroke(color('rgba(0, 0, 0, 0.1)'));
+		point(this.x, this.y);
+	};
+	
+	this.isOutsideScope = function() {
+		if (this.x < 0 || this.x > face.width || this.y < 0 || this.y > face.height)  { return true; } else { return false; }
+	};
+}
+
+function preload() {
+	// load image
+	face.faceImg = loadImage("facebw.jpg", function() {
+		console.log('win');
+	}, function() {
+		console.log('fail');
+	});
+}
+
+function setup() {
+	createCanvas(face.width, face.height);
+	//console.log(face.width, face.height);
+
+	// Resize and draw image
+	face.faceImg.resize(face.width, face.height);
+
+	// Filter it
+	face.faceImg.filter('gray');
+	face.faceImg.loadPixels();
+
+	// Redraw it
+	//image(face.faceImg, 0, 0);
+}
+
+function draw() {
+	face.moveParticles();
+	face.particleBirth();
+	face.drawParticles();
+}
+
+face.particleBirth = function() {
+	var xStart = face.width * Math.random();
+	var yStart = face.height * Math.random();
+	face.universe.push(new face.Particle(xStart, yStart, 0, 0));
+}
+face.moveParticles = function() {
+	jQuery(face.universe).each(function() {
+		this.move();
+	});
+}
+face.drawParticles = function() {
+	jQuery(face.universe).each(function() {
+		this.draw();
+	});
+}
+face.pixelRGBA = function(x, y) {
+    // loop over
+    var idx = 4 * (y * face.width + x);
+    var r = face.faceImg.pixels[idx];
+    var g = face.faceImg.pixels[idx+1];
+    var b = face.faceImg.pixels[idx+2];
+    var a = face.faceImg.pixels[idx+3];
+	
+    return {
+		r: r,
+		g: g,
+		b: b,
+		a: a
+	}
+}
+
+</script>
