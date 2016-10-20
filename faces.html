@@ -28,38 +28,60 @@ canvas {
 <script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js'></script>
 <script type='text/javascript'>
 
+var pageWidth = jQuery('body').width();
+var pageHeight = jQuery('body').height();
+
 var face = {}; // Namespace
-face.width = 2 * 210, face.height = 2 * 297;
+face.width = 3 * 210, face.height = 3 * 297;
+face.xC = face.width / 2, face.yC = face.height / 2;
 face.universe = [];
 
 face.Particle = function(xStart, yStart, xSpeed, ySpeed) {
+	// Coordinates inside the img space
 	this.x = xStart;
 	this.y = yStart;
 	this.xSpeed = xSpeed;
 	this.ySpeed = ySpeed;
-	this.type = (Math.random() > 0.5 ? 'xGoing' : 'yGoing');
-	//if (this.type == 'xGoing') { this.ySpeed = 0; } else { this.xSpeed = 0; }
+	this.r = Math.random() * 1/2 * face.height;
+	this.theta = Math.random() * 2 * Math.PI;
+	this.rSpeed = 0.01;
+	this.thetaSpeed = 0.01;
+	
+	this.type = (Math.random() < 0.5 ? '1' : '2');
+	
+	// Init
+	if (this.type == '1') {
+	  // Move radially
+	  this.r = 0; this.thetaSpeed = 0;
+	} else {
+	  // Move angle
+	  this.rSpeed = 0;
+	}
 
 	this.move = function() {
-		// Gravitational gradient
-		var acc =  Math.min(0.1, 0.001 * (1 + face.pixelRGBA(Math.floor(this.x), Math.floor(this.y)).r)) ;
-		this.ySpeed += (this.type == 'yGoing' ? acc : 0);
-		this.y += this.ySpeed;
-		this.xSpeed += (this.type == 'xGoing' ? acc : 0);
-		this.x += this.xSpeed;
-
-		if (this.isOutsideScope()) {
-			// Repop anywhere with speed zero
-			this.x = Math.random() * face.width;
-			this.y = Math.random() * face.height;
-			this.xSpeed = 0.001;
-			this.ySpeed = 0.001;
+		// Acceleration based on gray level (i.e. red here)
+		var speed = (face.pixelRGBA(Math.floor(this.x), Math.floor(this.y), this).R < 125 ? 1 : 5);// There only 0's and 255's anyway with a thresholded img
+		if (this.type == '1') {
+			this.rSpeed = 0.5 * speed;
+			this.thetaSpeed = 0;
+		} else {
+			this.rSpeed = 0;
+			this.thetaSpeed = 0.01 * speed;
 		}
+		this.r += this.rSpeed;
+		this.theta += this.thetaSpeed;
+		
+		// Now update x and y accordingly!
+		var imgXY = face.polarToXY(this.r, this.theta);
+		this.x = imgXY.x;
+		this.y = imgXY.y;
+		
 	};
 
 	this.draw = function() {
-		stroke(color('rgba(0, 0, 0, 0.01)'));
-		point(this.x, this.y);
+		stroke(color('rgba(0, 0, 0, 0.3)'));
+		var canvasXY = face.localImgToCanvas(this.x, this.y);
+		point(canvasXY.x, canvasXY.y);
 	};
 	
 	this.isOutsideScope = function() {
@@ -69,7 +91,7 @@ face.Particle = function(xStart, yStart, xSpeed, ySpeed) {
 
 function preload() {
 	// load image
-	face.faceImg = loadImage("facebw.jpg", function() {
+	face.faceImg = loadImage("facebw-threshold42.bmp", function() {
 		console.log('win');
 	}, function() {
 		console.log('fail');
@@ -77,18 +99,18 @@ function preload() {
 }
 
 function setup() {
-	createCanvas(face.width, face.height);
-	//console.log(face.width, face.height);
+	createCanvas(pageWidth, pageHeight);
 
-	// Resize and draw image
+	// Resize image
 	face.faceImg.resize(face.width, face.height);
 
 	// Filter it
 	face.faceImg.filter('gray');
 	face.faceImg.loadPixels();
 
-	// Redraw it
-	//image(face.faceImg, 0, 0);
+	// Draw it?
+	//image(face.faceImg);
+	//image(face.faceImg, 0.5 * pageWidth - 0.5 * face.width, 0.5 * pageHeight - 0.5 * face.height);
 }
 
 function draw() {
@@ -112,20 +134,46 @@ face.drawParticles = function() {
 		this.draw();
 	});
 }
-face.pixelRGBA = function(x, y) {
+face.pixelRGBA = function(x, y, _this) {
+	
+	if (_this.isOutsideScope()) {
+		return {
+			R: 255,
+			G: 255,
+			B: 255,
+			A: 255
+		};
+	}
     // loop over
     var idx = 4 * (y * face.width + x);
-    var r = face.faceImg.pixels[idx];
-    var g = face.faceImg.pixels[idx+1];
-    var b = face.faceImg.pixels[idx+2];
-    var a = face.faceImg.pixels[idx+3];
+    var R = face.faceImg.pixels[idx];
+    var G = face.faceImg.pixels[idx+1];
+    var B = face.faceImg.pixels[idx+2];
+    var A = face.faceImg.pixels[idx+3];
 	
     return {
-		r: r,
-		g: g,
-		b: b,
-		a: a
+		R: R,
+		G: G,
+		B: B,
+		A: A
 	}
+}
+face.polarToXY = function(r, theta) {
+	var xImg = face.width/2 + r * Math.cos(theta);
+    var yImg = face.height/2 - r * Math.sin(-theta);
+    return {
+      x: xImg,
+      y: yImg
+    };
+}
+face.localImgToCanvas = function(xImg, yImg) {
+	// From local polar image space to global cartesian canvas space
+    var xCanvas = xImg - face.width/2 + pageWidth/2;
+    var yCanvas = yImg - face.height/2 + pageHeight/2;
+    return {
+      x: xCanvas,
+      y: yCanvas
+    };
 }
 
 </script>
