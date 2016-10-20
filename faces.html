@@ -38,11 +38,11 @@ face.Particle = function(xStart, yStart, xSpeed, ySpeed) {
 	this.xSpeed = xSpeed;
 	this.ySpeed = ySpeed;
 	this.type = (Math.random() > 0.5 ? 'xGoing' : 'yGoing');
-	if (this.type == 'xGoing') { this.ySpeed = 0; } else { this.xSpeed = 0; }
+	//if (this.type == 'xGoing') { this.ySpeed = 0; } else { this.xSpeed = 0; }
 
 	this.move = function() {
 		// Gravitational gradient
-		var acc =  0.001 * (1 + face.pixelRGBA(Math.floor(this.x), Math.floor(this.y)).r) ;
+		var acc =  Math.min(0.1, 0.001 * (1 + face.pixelRGBA(Math.floor(this.x), Math.floor(this.y)).r)) ;
 		this.ySpeed += (this.type == 'yGoing' ? acc : 0);
 		this.y += this.ySpeed;
 		this.xSpeed += (this.type == 'xGoing' ? acc : 0);
@@ -50,15 +50,15 @@ face.Particle = function(xStart, yStart, xSpeed, ySpeed) {
 
 		if (this.isOutsideScope()) {
 			// Repop anywhere with speed zero
-			this.x = Math.random() * face.height;
-			this.y = Math.random() * face.width;
-			this.xSpeed = 0;
-			this.ySpeed = 0;
+			this.x = Math.random() * face.width;
+			this.y = Math.random() * face.height;
+			this.xSpeed = 0.001;
+			this.ySpeed = 0.001;
 		}
 	};
 
 	this.draw = function() {
-		stroke(color('rgba(0, 0, 0, 0.1)'));
+		stroke(color('rgba(0, 0, 0, 0.01)'));
 		point(this.x, this.y);
 	};
 	
@@ -100,7 +100,7 @@ function draw() {
 face.particleBirth = function() {
 	var xStart = face.width * Math.random();
 	var yStart = face.height * Math.random();
-	face.universe.push(new face.Particle(xStart, yStart, 0, 0));
+	face.universe.push(new face.Particle(xStart, yStart, 0.001, 0.001));
 }
 face.moveParticles = function() {
 	jQuery(face.universe).each(function() {
