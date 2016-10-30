@@ -46,40 +46,24 @@ face.Particle = function(xStart, yStart, xSpeed, ySpeed) {
 	this.theta = Math.random() * 2 * Math.PI;
 	this.rSpeed = 0.01;
 	this.thetaSpeed = 0.01;
-	
-	this.type = (Math.random() < 0.5 ? '1' : '2');
-	
-	// Init
-	if (this.type == '1') {
-	  // Move radially
-	  this.r = 0; this.thetaSpeed = 0;
-	} else {
-	  // Move angle
-	  this.rSpeed = 0;
-	}
 
 	this.move = function() {
 		// Acceleration based on gray level (i.e. red here)
-		var speed = (face.pixelRGBA(Math.floor(this.x), Math.floor(this.y), this).R < 125 ? 5 : 1);// There only 0's and 255's anyway with a thresholded img
-		if (this.type == '1') {
-			this.rSpeed = 0.5 * speed;
-			this.thetaSpeed = 0;
-		} else {
-			this.rSpeed = 0;
-			this.thetaSpeed = 0.01 * speed;
-		}
-		this.r += this.rSpeed;
-		this.theta += this.thetaSpeed;
+		var acc = 0.0001 * (255/2 - face.pixelRGBA(Math.floor(this.x), Math.floor(this.y), this).R);
+		this.xSpeed += acc;
+		this.ySpeed += acc;
+		this.x += 0.1 * this.xSpeed;
+		this.y += 0.1 * this.ySpeed;
 		
 		// Now update x and y accordingly!
-		var imgXY = face.polarToXY(this.r, this.theta);
+		/*var imgXY = face.polarToXY(this.r, this.theta);
 		this.x = imgXY.x;
-		this.y = imgXY.y;
+		this.y = imgXY.y;*/
 		
 	};
 
 	this.draw = function() {
-		stroke(color('rgba(255, 255, 255, 0.05)'));
+		stroke(color('rgba(255, 255, 255, 0.15)'));
 		var canvasXY = face.localImgToCanvas(this.x, this.y);
 		point(canvasXY.x, canvasXY.y);
 	};
@@ -91,7 +75,7 @@ face.Particle = function(xStart, yStart, xSpeed, ySpeed) {
 
 function preload() {
 	// load image
-	face.faceImg = loadImage("facebw-threshold42.bmp", function() {
+	face.faceImg = loadImage("florcrop3.jpg", function() {
 		console.log('win');
 	}, function() {
 		console.log('fail');
@@ -120,9 +104,21 @@ function draw() {
 }
 
 face.particleBirth = function() {
-	var xStart = face.width * Math.random();
-	var yStart = face.height * Math.random();
-	face.universe.push(new face.Particle(xStart, yStart, 0.001, 0.001));
+	var type = (Math.random() < 0.5 ? '1' : '2');
+	var xStart, yStart, xSpeed, ySpeed;
+	if (type == '1') {
+		// From to right corner, launched down and to the left
+		xStart = face.width;
+		yStart = 0;
+		xSpeed = -10 * Math.random();
+		ySpeed = 10;
+	} else {
+		xStart = face.width * Math.random();
+		yStart = 0;
+		xSpeed = 0;
+		ySpeed = 30;
+	}
+	face.universe.push(new face.Particle(xStart, yStart, xSpeed, ySpeed));
 }
 face.moveParticles = function() {
 	jQuery(face.universe).each(function() {
