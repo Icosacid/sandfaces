@@ -26,13 +26,14 @@ canvas {
 
 <script src='https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.5.4/p5.min.js'></script>
 <script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js'></script>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.5.2/underscore-min.js'></script>
 <script type='text/javascript'>
 
 var pageWidth = jQuery('body').width();
 var pageHeight = jQuery('body').height();
 
 var face = {}; // Namespace
-face.width = 3 * 210, face.height = 3 * 297;
+face.width = 7 * 210, face.height = 7 * 297;
 face.xC = face.width / 2, face.yC = face.height / 2;
 face.universe = [];
 
@@ -48,10 +49,96 @@ face.Particle = function(xStart, yStart, xSpeed, ySpeed) {
 	this.thetaSpeed = 0.01;
 
 	this.move = function() {
-		// Acceleration based on gray level (i.e. red here)
-		var acc = 0.0001 * (255/2 - face.pixelRGBA(Math.floor(this.x), Math.floor(this.y), this).R);
-		this.xSpeed += acc;
-		this.ySpeed += acc;
+		// Acceleration based on gray level (i.e. red here) gradient
+		// Gradient based on minimal grey value (draw black in darkest places)
+		
+		var acc = 0.05; // * (-255/2 + face.pixelRGBA(Math.floor(this.x), Math.floor(this.y), this).R);
+		
+		var addedChaos = 10 * (2 * Math.random() - 1);
+		var cheat = 0 * Math.random();
+		var gradSquare = [
+			{ pixel: 'topleft', greyLevel: face.pixelRGBA(Math.floor(this.x - 1), Math.floor(this.y - 1), this).R + addedChaos },
+			{ pixel: 'top', greyLevel: face.pixelRGBA(Math.floor(this.x), Math.floor(this.y - 1), this).R + addedChaos },
+			{ pixel: 'topright', greyLevel: face.pixelRGBA(Math.floor(this.x + 1), Math.floor(this.y - 1), this).R + addedChaos },
+			
+			{ pixel: 'left', greyLevel: face.pixelRGBA(Math.floor(this.x - 1), Math.floor(this.y), this).R + addedChaos },
+			{ pixel: 'right', greyLevel: face.pixelRGBA(Math.floor(this.x + 1), Math.floor(this.y), this).R + addedChaos },
+			
+			{ pixel: 'bottomleft', greyLevel: face.pixelRGBA(Math.floor(this.x - 1), Math.floor(this.y + 1), this).R + addedChaos - cheat },
+			{ pixel: 'bottom', greyLevel: face.pixelRGBA(Math.floor(this.x), Math.floor(this.y + 1), this).R + addedChaos },
+			{ pixel: 'bottomright', greyLevel: face.pixelRGBA(Math.floor(this.x + 1), Math.floor(this.y + 1), this).R + addedChaos }
+		];
+		
+		// Get object with the lowest grey level
+		var winner = _.min(gradSquare, function(el) {
+			return el.greyLevel;
+		});
+		// Get object with the highest grey level, to check if all have the same value
+		var loser = _.max(gradSquare, function(el) {
+			return el.greyLevel;
+		});
+		
+		// Do nothing if all surrounding pixels have the same value
+		if (winner.greyLevel !== loser.greyLevel) {
+			switch(loser.pixel) {
+				case 'topleft':
+					this.xSpeed -= acc / Math.sqrt(2);
+					this.ySpeed -= acc / Math.sqrt(2);
+					break;
+				case 'top':
+					this.ySpeed -= acc;
+					break;
+				case 'topright':
+					this.xSpeed += acc / Math.sqrt(2);
+					this.ySpeed -= acc / Math.sqrt(2);
+					break;
+					
+				case 'left':
+					this.xSpeed -= acc;
+					break;
+				case 'right':
+					this.xSpeed += acc;
+					break;
+					
+				case 'bottomleft':
+					this.xSpeed -= acc / Math.sqrt(2);
+					this.ySpeed += acc / Math.sqrt(2);
+					break;
+				case 'bottom':
+					this.ySpeed += acc;
+					break;
+				case 'bottomright':
+					this.xSpeed += acc / Math.sqrt(2);
+					this.ySpeed += acc / Math.sqrt(2);
+					break;
+					
+				default:
+					(function() {return null;})();
+			}
+		}
+		
+		// Speed calmers
+		var maxSpeed = 50, minSpeed = 1;
+		var speed = Math.sqrt(Math.pow(this.xSpeed, 2) + Math.pow(this.ySpeed, 2));
+		if (speed > maxSpeed) {
+			this.xSpeed *= maxSpeed / speed;
+			this.ySpeed *= maxSpeed / speed;
+		}
+		if (speed < minSpeed) {
+			this.xSpeed *= minSpeed / speed;
+			this.ySpeed *= minSpeed / speed;
+		}
+		
+		
+		if (this.isOutsideScope()) {
+			// Spring attraction to attract maintain particles to the center
+			var k = 0.0001;
+			var springAccX = -k * (this.x - face.width / 2);
+			var springAccY = -k * (this.y - face.height / 2);
+			this.xSpeed += springAccX;
+			this.ySpeed += springAccY;
+		}
+		
 		this.x += 0.1 * this.xSpeed;
 		this.y += 0.1 * this.ySpeed;
 		
@@ -63,7 +150,11 @@ face.Particle = function(xStart, yStart, xSpeed, ySpeed) {
 	};
 
 	this.draw = function() {
-		stroke(color('rgba(255, 255, 255, 0.15)'));
+		var opa = 0.1;
+		if (face.pixelRGBA(Math.floor(this.x), Math.floor(this.y), this).R < 133) {
+			opa /= 2;
+		}
+		stroke(color('rgba(255, 255, 255, '+ opa + ')'));
 		var canvasXY = face.localImgToCanvas(this.x, this.y);
 		point(canvasXY.x, canvasXY.y);
 	};
@@ -75,7 +166,7 @@ face.Particle = function(xStart, yStart, xSpeed, ySpeed) {
 
 function preload() {
 	// load image
-	face.faceImg = loadImage("florcrop3.jpg", function() {
+	face.faceImg = loadImage("seb7.bmp", function() {
 		console.log('win');
 	}, function() {
 		console.log('fail');
@@ -104,20 +195,88 @@ function draw() {
 }
 
 face.particleBirth = function() {
-	var type = (Math.random() < 0.5 ? '1' : '2');
-	var xStart, yStart, xSpeed, ySpeed;
+	var type = 1 + Math.floor(Math.random() * 6);
+	var xStart, yStart, xSpeed, ySpeed, angle, speed;
+	
+	/* // In Fleur hair 
+	// Launch position
+	xStart = face.width * 0.6;
+	yStart = face.height * 0.13;
+	
+	// Launch speed and angle
+	var angle = 2 * Math.PI * Math.random();
+	var speed = 3;
+	xSpeed = speed * Math.cos(angle);
+	ySpeed = speed * Math.sin(angle);
+	*/
+	
+	/*
+	// Wind in da face
+	xStart = face.width * 0.87;
+	yStart = face.height * 0.3 * Math.random();
+	// Launch speed and angle
+	var angle = -1.1 * Math.PI;
+	var speed = 10;
+	xSpeed = speed * Math.cos(angle);
+	ySpeed = speed * Math.sin(angle);
+	*/
+	
+	/*
+	// Everywhere
+	xStart = face.width * Math.random();
+	yStart = face.height * Math.random();
+	var angle = 2 * Math.PI * Math.random();
+	var speed = 1;
+	xSpeed = speed * Math.cos(angle);
+	ySpeed = speed * Math.sin(angle);
+	*/
+	
+	var speed = 2;
+	
 	if (type == '1') {
-		// From to right corner, launched down and to the left
-		xStart = face.width;
-		yStart = 0;
-		xSpeed = -10 * Math.random();
-		ySpeed = 10;
-	} else {
+		// Top side
 		xStart = face.width * Math.random();
 		yStart = 0;
-		xSpeed = 0;
-		ySpeed = 30;
+		angle = 1/2 * Math.PI;
+	} else if (type == '2') {
+		// Right side
+		xStart = face.width;
+		yStart = face.height * Math.random();
+		angle = Math.PI;
+	} else if (type == '3') {
+		// Bottom side
+		xStart = face.width * Math.random();
+		yStart = face.height;
+		angle = - 1/2 * Math.PI;
+	} else if (type == '4') {
+		// Left side
+		xStart = 0;
+		yStart = face.height * Math.random();
+		angle = 0;
+	} else if (type == '5') {
+		// Everywhere
+		xStart = face.width * Math.random();
+		yStart = face.height * Math.random();
+		angle = 2 * Math.PI * Math.random();
+		speed = 5;
+	} else if (type == '6') {
+		// Seb eyes
+		if (Math.random() < 0.5) {
+			xStart = face.width * 0.381;
+			yStart = face.height * 0.466;
+			angle = 2 * Math.PI * Math.random();
+		} else {
+			xStart = face.width * 0.61;
+			yStart = face.height * 0.468;
+			angle = 2 * Math.PI * Math.random();
+		}
+		
 	}
+	
+	var extraAngle = (2 * Math.random() - 1) * Math.PI / 4;
+	xSpeed = speed * Math.cos(angle + extraAngle);
+	ySpeed = speed * Math.sin(angle + extraAngle);
+	
 	face.universe.push(new face.Particle(xStart, yStart, xSpeed, ySpeed));
 }
 face.moveParticles = function() {
